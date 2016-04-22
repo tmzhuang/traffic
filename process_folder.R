@@ -1,14 +1,20 @@
 #!/usr/bin/env Rscript
 require('plotrix')
 files = list.files(pattern="*.csv")
-for(f in files)
-{
+sums = numeric(100000)
+for(i in seq_along(files)) {
   #Get data from csv
-  print(f)
-  csv = read.csv(f)
+  print(paste("Reading from: ", files[i]))
+  csv = read.csv(files[i])
   data = csv[,1]
-  print(mean(data))
+  for(j in seq_along(data)){
+    sums[j] = sums[j] + data[j]
+  }
 
+  if(i==1) {
+    print(files[i])
+    write.csv(data, file="data1.csv", row.names = FALSE)
+  }
   #Calculate max and min for width
   #data_max = max(data)
   #data_min = min(data)
@@ -23,3 +29,11 @@ for(f in files)
   #graph = hist(data, breaks=seq(0, data_max+1, by=0.1), freq=FALSE, main=title, xlim=c(data_min, data_max))
   #dev.off()
 }
+
+avgs = numeric(100000)
+for(i in seq_along(sums)){
+  avgs[i] = sums[i] / 20
+}
+
+write.csv(sums, file="sums.csv", row.names = FALSE)
+write.csv(avgs, file="averages.csv", row.names = FALSE)

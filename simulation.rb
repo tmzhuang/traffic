@@ -12,7 +12,21 @@ module Statistics
       init_state
     end
 
+    def test
+      5.times do |i|
+        init_state
+        name = "test#{i}.txt"
+        f = File.open(name, 'w')
+        1000.times do
+          f.puts generate_service_time
+        end
+      end
+    end
+
     def init_state
+      @interarrivals = Array.new(@interarrivals_base )
+      @services = Array.new(@services_base)
+
       @interarrival_generator = Exp.new(@lam, 0.7, @b)
       @service_generator = Exp.new(@mew, 0.7, 0.5)
       @event_factory = EventFactory.new
@@ -22,6 +36,7 @@ module Statistics
       @fel = []
       @frames = []
       @packets_served = 0
+      @packets_created = 1
 
       #stats
       @departures = 0
@@ -29,29 +44,34 @@ module Statistics
     end
 
     def get_data_from_files
-      @interarrivals, @services = [], []
+      @interarrivals_base, @services_base = [], []
       CSV.foreach("./data/interarrivals.csv", converters: :numeric) do |input_csv|
-        @interarrivals << input_csv[0]
+        @interarrivals_base << input_csv[0]
       end
       CSV.foreach("./data/services.csv", converters: :numeric) do |input_csv|
-        @services << input_csv[0]
+        @services_base << input_csv[0]
       end
     end
 
     def run(reps=1)
+      timestring = Time.now.to_i
+      dir = "#{timestring}_lam#{@lam}_b#{float_to_underscore(@b)}_mew#{@mew}_results"
+      Dir.mkdir(dir)
       reps.times do |i|
+        init_state
+
         # create first arrival
         @fel << @event_factory.build(:arrival, 0)
+
         # Run simulation
-        while @packets_served < 100000
+        while @packets_created <= 100000
           event = @fel.shift
           handle_event(event)
         end
 
         # Output results
-        timestring = Time.now.to_i
         title = "rep#{i+1}_#{timestring}_lam#{@lam}_b#{float_to_underscore(@b)}_mew#{@mew}_results"
-        filename = "#{title}.csv"
+        filename = "#{dir}/#{title}.csv"
         # Write column title
         CSV.open(filename, 'w') do |csv|
           csv << [ title ]
@@ -81,6 +101,7 @@ module Statistics
     end
 
     def handle_arrival(event)
+      @packets_created += 1
       #p "Handling arrival: #{event}"
       @clock = event.time
       # If server is empty, serve the customer and generate departure event
@@ -113,7 +134,7 @@ module Statistics
                    #departures: @departures,
                    #utilization: util
       #}
-      @server_busy_time += service_time unless service_time.nil?
+      @server_busy_time += service_time if service_time
     end
 
     def get_fel_copy
@@ -140,7 +161,7 @@ module Statistics
       #collect stats
       util = @server_busy_time / @clock
       @departures += 1
-      @frames << @queue.size + @server.size
+      #@frames << @queue.size + @server.size
       #@frames << { time: @clock,
                    #event_type: event.type,
                    #fel: get_fel_copy,
@@ -246,7 +267,7 @@ module Statistics
       # 7, 0.5, 10
       sim = Simulation.new(lam, b, mew)
       sim.run(20)
-      # 9, 0.5, 10
+      #9, 0.5, 10
       lam = 9 
       sim = Simulation.new(lam, b, mew)
       sim.run(20)
